@@ -58,6 +58,37 @@ make run-cli-harness-test BASE_URL=http://localhost:9090                        
 make run-cli-harness-test QUIET=1                                               # CI mode
 ```
 
+## CI orchestration
+
+`.github/workflows/coding-agent-compatibility.yml` runs a deliberately small
+live canary instead of putting the full CLI/provider/model/scenario matrix on
+every pull request:
+
+- a daily scheduled run covers one pinned Claude Code/Anthropic cell and one
+  pinned Codex/OpenAI cell;
+- `workflow_dispatch` can run either lane, choose a focused scenario, and
+  override the exact CLI package versions;
+- each lane is capped at 20 minutes, runs one cell at a time, and uploads the
+  harness reports, transcripts, requested binary version, installed binary
+  version, Bifrost commit, and workflow URL;
+- the workflow has no `pull_request` trigger, so gateway/provider credentials
+  are never exposed to forked pull requests.
+
+Configure `BIFROST_CODING_AGENT_BASE_URL` as a repository variable and
+`BIFROST_CODING_AGENT_API_KEY` as a repository secret. Set the repository
+variable `BIFROST_CODING_AGENT_CANARY_ENABLED=true` to enable scheduled runs;
+without it, the schedule safely produces no external calls while manual runs
+remain available. The target should be a dedicated synthetic tenant on a
+non-production Bifrost deployment.
+
+The live canary checks executable-system compatibility and is expected to be
+more variable than a unit test. Payload fidelity remains a deterministic
+contract test in the Gray Swan plugin and Cygnal API repositories. When the
+canary exposes a new request shape, sanitize and minimize its request, record
+the CLI/Bifrost/plugin versions, and promote it into those repositories as a
+native reproduction plus expected monitor payload. Do not turn an entire live
+transcript into a golden file or assert exact generated prose.
+
 Or directly via `go test`:
 
 ```bash
